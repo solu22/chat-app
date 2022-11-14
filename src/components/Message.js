@@ -1,15 +1,21 @@
-import React from 'react'
+import React, { useContext } from 'react'
+import { AuthContext } from '../context/AuthContext'
+import { UserChatContext } from '../context/UserChatContext';
 
-const Message = () => {
+const Message = ({m}) => {
+  const { currUser} = useContext(AuthContext)
+  const { data } = useContext(UserChatContext);
+
   return (
-    <div className='message owner'>
-      <div className="messageInfo">
-        <img src='https://picsum.photos/200' alt="" />
+    <div className={`message ${m.senderId === currUser.uid && "owner"}`}>
+      
+      <div className="mInfo">
+        <img src={m.senderId === currUser.uid ? currUser.photoURL: data.user.photoUR} alt="" />
         <span>just now</span>
       </div>
-      <div className='messageContent'>
-        <p>hello</p>
-        <img src='https://picsum.photos/200' alt ="" />
+      <div className='mContent'>
+        <p>{m.text}</p>
+        {m.img && <img src= {m.img} alt ="" />}
       </div>
 
     </div>

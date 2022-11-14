@@ -1,19 +1,77 @@
-import React from 'react'
+import React, { useContext, useState } from 'react'
 import {HiPhotograph} from 'react-icons/hi'
 import {GrAttachment} from 'react-icons/gr'
+import { arrayUnion, doc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
+import { db, storage } from '../firebase'
+import { v4 as uuid} from 'uuid'
+import { AuthContext } from '../context/AuthContext'
+import { UserChatContext } from '../context/UserChatContext'
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage'
 
 const Input = () => {
+  const {currUser} = useContext(AuthContext)
+  const {data} = useContext(UserChatContext)
+  const [text, setText] = useState("")
+  const [img, setImg] = useState(null)
+
+  const handleSend = async()=>{
+    if(img){
+      const storageRef = ref(storage, uuid())
+      const uploadTask = uploadBytesResumable(storageRef, img);
+
+      uploadTask.on((error)=> {console.log(error)}, ()=>{
+        
+          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+            await updateDoc(doc(db, "chats", data.chatId), {
+              messages: arrayUnion({
+                id: uuid(),
+                text,
+                senderId: currUser.uid,
+                date: Timestamp.now(),
+                img: downloadURL,
+              }),
+            });
+          });
+        });
+    }else{
+      await updateDoc(doc(db, "chats",data.chatId),{
+        messages:arrayUnion({
+          id:uuid(),
+          text,
+          senderId: currUser.uid,
+          date: Timestamp.now()
+        })
+      })
+    }
+   
+    await updateDoc(doc(db, "userChatCollection", currUser.id),{
+      [data.chatId+ ". lastMessage"]:{
+        text
+      },
+      [data.chatId/ + ".date"]: serverTimestamp()
+    })
+
+    await updateDoc(doc(db, "userChatCollection", data.user.uid), {
+      [data.chatId+ ". lastMessage"]: {
+        text,
+      },
+      [data.chatId + ".date"]: serverTimestamp(),
+    });
+
+    setText("")
+    setImg(null)
+  }
   return (
     <div className='input'>
-        <input type ='text' placeholder='Type message here' />
+        <input type ='text' placeholder='Type message here' onChange= {e=> setText(e.target.value)} />
         <div className='send'>
           
             <HiPhotograph className='img'/>
-            <input type='file' style={{display:'none'}}  id='file'/>
+            <input type='file' style={{display:'none'}}  id='file' onChange= {e => setImg(e.target.files[0])}/>
             <label htmlFor='file'>
                 <GrAttachment  />
             </label>
-            <button>Send</button>
+            <button onClick= {handleSend}>Send</button>
         </div>
     </div>
   )
